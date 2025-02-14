@@ -21,14 +21,8 @@ class BuildConfig {
     String getServiceCategoryName() {
         String repo = null;
         switch (this.context) {
-            case ~/.*core-services.*/:
+            case ~/.*backend.*/:
                 repo = "CORE"
-                break;
-            case ~/.*municipal-services.*/:
-                repo = "MUNICIPAL"
-                break;
-            case ~/.*business-services.*/:
-                repo = "BUSINESS"
                 break;
             case ~/.*frontend.*/:
                 repo = "FRONTEND"

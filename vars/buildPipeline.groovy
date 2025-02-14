@@ -10,48 +10,33 @@ def call(Map pipelineParams) {
     podTemplate(yaml: """
 kind: Pod
 metadata:
+  namespace: backbone-prod
   name: kaniko
 spec:
+  imagePullSecrets:
+    - name: acr-secret
   containers:
   - name: kaniko
-    image: gcr.io/kaniko-project/executor:debug-v0.15.0
+    image: pucarsolutionsdev.azurecr.io/executor:debug
     imagePullPolicy: IfNotPresent
     command:
     - /busybox/cat
     tty: true
     env:
       - name: GIT_ACCESS_TOKEN
-        valueFrom:
-          secretKeyRef:
-            name: jenkins-credentials
-            key: gitReadAccessToken 
+        value: demo
       - name: token
-        valueFrom:
-          secretKeyRef:
-            name: jenkins-credentials
-            key: gitReadAccessToken             
+        value: demo             
       - name: "GOOGLE_APPLICATION_CREDENTIALS"
         value: "/var/run/secret/cloud.google.com/service-account.json"
       - name: NEXUS_USERNAME
-        valueFrom:
-          secretKeyRef:
-            name: jenkins-credentials
-            key: nexusUsername                      
+        value: demo                    
       - name: NEXUS_PASSWORD
-        valueFrom:
-          secretKeyRef:
-            name: jenkins-credentials
-            key: nexusPassword                      
+        value: demo                       
       - name: CI_DB_USER
-        valueFrom:
-          secretKeyRef:
-            name: jenkins-credentials
-            key: ciDbUsername                      
+        value: demo                       
       - name: CI_DB_PWD
-        valueFrom:
-          secretKeyRef:
-            name: jenkins-credentials
-            key: ciDbpassword                      
+        value: demo                    
     volumeMounts:
       - name: jenkins-docker-cfg
         mountPath: /root/.docker
@@ -65,9 +50,26 @@ spec:
         cpu: "750m"
       limits:
         memory: "4080Mi"
-        cpu: "1500m"      
+        cpu: "1500m"   
+//  - name: jnlp
+//    image: pucarsolutionsdev.azurecr.io/inbound-agent:3283.v92c105e0f819-4
+//    imagePullPolicy: IfNotPresent
+//    env:
+//      - name: JENKINS_TUNNEL
+//        value: jenkins-agent.backbone-prod.svc.cluster.local:50000
+//      - name: JENKINS_AGENT_WORKDIR
+//        value: /home/jenkins/agent
+//      - name: JENKINS_URL
+//        value: http://jenkins.backbone-prod.svc.cluster.local:8080/jenkins
+//    resources:
+//      requests:
+//        cpu: 100m
+//        memory: 256Mi
+//    volumeMounts:
+//      - mountPath: /home/jenkins/agent
+//        name: workspace
   - name: git
-    image: docker.io/egovio/builder:2-64da60a1-version_script_update-NA
+    image: pucarsolutionsdev.azurecr.io/builder:2-64da60a1-version_script_update-NA
     imagePullPolicy: IfNotPresent
     command:
     - cat
@@ -76,29 +78,21 @@ spec:
   - name: kaniko-cache
     persistentVolumeClaim:
       claimName: kaniko-cache-claim
-      readOnly: true      
+      readOnly: true  
+  - emptyDir: {}
+    name: workspace    
   - name: service-account
-    projected:
-      sources:
-      - secret:
-          name: jenkins-credentials
-          items:
-            - key: gcpServiceAccount
-              path: service-account.json   
+    vaule: backbone-prod-sa  
   - name: jenkins-docker-cfg
-    projected:
-      sources:
-      - secret:
-          name: jenkins-credentials
-          items:
-            - key: dockerConfigJson
-              path: config.json          
+    value: demo   
+  serviceAccount: backbone-prod-sa
+  serviceAccountName: backbone-prod-sa
 """
     ) {
         node(POD_LABEL) {
 
             def scmVars = checkout scm
-            String REPO_NAME = env.REPO_NAME ? env.REPO_NAME : "docker.io/egovio";         
+            String REPO_NAME = env.REPO_NAME ? env.REPO_NAME : "registry.backbone-prod:5000";
             String GCR_REPO_NAME = "asia.gcr.io/digit-egov";
             def yaml = readYaml file: pipelineParams.configFile;
             List<JobConfig> jobConfigs = ConfigParser.parseConfig(yaml, env);
